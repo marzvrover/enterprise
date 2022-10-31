@@ -62,8 +62,8 @@ function build_php() {
     sudo INSTALL_ROOT=/ DESTDIR=/ make -j$(nproc) install
 
     # update symbolic link
-    rm -rf /usr/local/php/current
-    ln -s /usr/local/php/${PHP_VERSION}-enterprise /usr/local/php/current
+    sudo rm -rf /usr/local/php/current
+    sudo ln -s /usr/local/php/${PHP_VERSION}-enterprise /usr/local/php/current
 }
 
 # download composer and move it to path
