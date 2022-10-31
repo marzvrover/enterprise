@@ -1,43 +1,16 @@
 #! /bin/bash
 
 PHP_VERSION="8.1.12"
+XDEBUG_VERSION="3.1.5"
+
 PHP_PATH="/usr/local/php"
 TMP_DIR="$(mktemp -d)"
 TMP_PATH_PHP="${TMP_DIR}/php-src-php-${PHP_VERSION}"
 SOURCE_DIR="$(dirname "$(realpath "$0")")/.."
 
-skip_apt=false
-skip_composer=false
-skip_php=false
-positionals=""
-while (("$#")); do
-    case "$1" in
-    --skip-apt)
-        skip_apt=true
-        shift
-        ;;
-    --skip-composer)
-        skip_composer=true
-        shift
-        ;;
-    --skip-php)
-        skip_php=true
-        shift
-        ;;
-    -* | --*) # unsupported arguments
-        echo "ERROR: unsupported $1" >&2
-        exit 1
-        ;;
-    *)
-        positionals="$positionals $1"
-        shift
-        ;;
-     esac
-done
-eval set -- "$positionals"
-
 # SGDInstitute/enterprise requires the pcntl extension which calls for a custom build of PHP
 
+# build extensions bundled in the php source code
 function build_ext() {
     cd "${TMP_PATH_PHP}/ext/$1"
     phpize
@@ -45,9 +18,9 @@ function build_ext() {
     sudo make -j$(nproc) install
 }
 
+# build xdebug
 function build_xdebug() {
     cd "${TMP_DIR}"
-    XDEBUG_VERSION="3.1.5"
     curl -L "https://github.com/xdebug/xdebug/archive/refs/tags/${XDEBUG_VERSION}.zip" -o xdebug.zip
     unzip xdebug.zip
     cd "xdebug-${XDEBUG_VERSION}"
@@ -56,6 +29,7 @@ function build_xdebug() {
     sudo make -j$(nproc) install
 }
 
+# build all extensions
 function build_extenstions() {
     build_ext bcmath
     build_ext curl
@@ -65,8 +39,10 @@ function build_extenstions() {
     build_ext pcntl
     build_ext sodium
     build_ext zip
+    build_xdebug
 }
 
+# build php with flags required for all the extensions we wish to use
 function build_php() {
     cd "${TMP_PATH_PHP}"
     ./buildconf --force
@@ -85,11 +61,12 @@ function build_php() {
         --with-zlib
     sudo INSTALL_ROOT=/ DESTDIR=/ make -j$(nproc) install
 
-    # fix symbolic link
+    # update symbolic link
     rm -rf /usr/local/php/current
     ln -s /usr/local/php/${PHP_VERSION}-enterprise /usr/local/php/current
 }
 
+# download composer and move it to path
 function install_composer() {
     cd "${TMP_DIR}"
     php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
@@ -99,28 +76,23 @@ function install_composer() {
     sudo mv composer.phar /usr/local/bin/composer
 }
 
-if [ "$skip_apt" = false ] ; then
-    sudo apt update
-    sudo apt install -y libzip-dev
-fi
+# install libzip
+sudo apt update
+sudo apt install -y libzip-dev
 
-if [ "$skip_php" = false ] ; then
-    curl -L "https://github.com/php/php-src/archive/refs/tags/php-${PHP_VERSION}.zip" -o "/tmp/php-${PHP_VERSION}.zip"
-    mkdir -p "${PHP_PATH}"
-    unzip "/tmp/php-${PHP_VERSION}.zip" -d "${TMP_DIR}"
+# installl php
+curl -L "https://github.com/php/php-src/archive/refs/tags/php-${PHP_VERSION}.zip" -o "/tmp/php-${PHP_VERSION}.zip"
+mkdir -p "${PHP_PATH}"
+unzip "/tmp/php-${PHP_VERSION}.zip" -d "${TMP_DIR}"
 
-    build_php
-    build_extenstions
-    build_xdebug
+build_php
+build_extenstions
 
-    # copy php.ini
-    cd "${SOURCE_DIR}"
-    sudo cp .devcontainer/enterprise.php.ini `php --ini | grep "Path:" | sed -e "s|.*:\s*||"`/php.ini
-fi
+# copy php.ini
+cd "${SOURCE_DIR}"
+sudo cp .devcontainer/enterprise.php.ini $(php --ini | grep "Path:" | sed -e "s|.*:\s*||")/php.ini
 
-if [ "$skip_composer" = false ] ; then
-    install_composer
-fi
+install_composer
 
 # cleanup
 sudo rm -rf "${TMP_DIR}"
