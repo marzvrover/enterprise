@@ -42,8 +42,7 @@ function build_ext() {
     cd "${TMP_PATH_PHP}/ext/$1"
     phpize
     ./configure
-    sudo make
-    sudo make install
+    sudo make -j$(nproc) install
 }
 
 function build_xdebug() {
@@ -54,8 +53,7 @@ function build_xdebug() {
     cd "xdebug-${XDEBUG_VERSION}"
     phpize
     ./configure
-    sudo make
-    sudo make install
+    sudo make -j$(nproc) install
 }
 
 function build_extenstions() {
@@ -125,6 +123,4 @@ if [ "$skip_composer" = false ] ; then
 fi
 
 # cleanup
-# rm -rf "${TMP_DIR}"
-echo "${PHP_VERSION}-enterprise"
-echo "${TMP_DIR}"
+sudo rm -rf "${TMP_DIR}"

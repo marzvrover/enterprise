@@ -1,6 +1,7 @@
 {
   "image": "mcr.microsoft.com/devcontainers/universal:2",
-  "postCreateCommand": "./.devcontainer/bootstrap.sh",
+  "onCreateCommand": "./.devcontainer/bootstrap.sh",
+  "updateContentCommand": "./.devcontainer/updateContentCommand.sh",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/node:1": {}
